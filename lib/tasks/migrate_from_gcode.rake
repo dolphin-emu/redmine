@@ -181,7 +181,7 @@ namespace :redmine do
           next unless Time.fake(ts(issue['updated'])) { i.save! }
 
           prev_status = DEFAULT_STATUS
-          issue['comments']['items'].each do |comment|
+          issue['comments']['items'][1..-1].each do |comment|
             print '.'
             n = Journal.new :notes => comment['content'],
                             :created_on => ts(comment['published'])
