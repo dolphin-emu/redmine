@@ -159,8 +159,8 @@ namespace :redmine do
       def self.migrate
         print 'Migrating issues'
         @takeout_project['issues']['items'].each do |issue|
-          print '.'
-          Issue.find(issue['id']).delete if Issue.exists?(issue['id'])
+          print '|'
+          Issue.find(issue['id']).destroy if Issue.exists?(issue['id'])
           title = issue['title']
           if title.blank?
             title = '[No title]'
@@ -179,6 +179,26 @@ namespace :redmine do
             i.assigned_to = find_or_create_user(issue['owner']['name'])
           end
           next unless Time.fake(ts(issue['updated'])) { i.save! }
+
+          prev_status = DEFAULT_STATUS
+          issue['comments']['items'].each do |comment|
+            print '.'
+            n = Journal.new :notes => comment['content'],
+                            :created_on => ts(comment['published'])
+            n.user = find_or_create_user(comment['author']['name'])
+            n.journalized = i
+            if comment['updates']['status']
+              new_status = STATUS_MAPPING[comment['updates']['status'].downcase]
+              if new_status
+                n.details << JournalDetail.new(:property => 'attr',
+                                               :prop_key => 'status_id',
+                                               :old_value => prev_status.id,
+                                               :value => new_status.id)
+                prev_status = new_status
+              end
+            end
+            n.save
+          end
         end
       end
     end
