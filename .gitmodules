@@ -1,0 +1,3 @@
+[submodule "public/themes/circle"]
+	path = public/themes/circle
+	url = https://github.com/RCRM/circle
