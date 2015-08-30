@@ -159,7 +159,7 @@ namespace :redmine do
       def self.migrate
         print 'Migrating issues'
         @takeout_project['issues']['items'].each do |issue|
-          print '|'
+          print '|', issue['id'], '|'
           Issue.find(issue['id']).destroy if Issue.exists?(issue['id'])
           title = issue['title']
           if title.blank?
