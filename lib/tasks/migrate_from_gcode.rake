@@ -62,6 +62,10 @@ namespace :redmine do
 
       DEFAULT_TRACKER = Tracker.find_by_name('Bug')
 
+      USER_MAPPING = {
+        "admin@archshift.com" => "archshift",
+      }
+
       class ::Time
         class << self
           alias :real_now :now
@@ -116,12 +120,17 @@ namespace :redmine do
       def self.find_or_create_user(username)
         return User.anonymous if (!username || username.blank?)
 
-        if username.include?("@")
+        if USER_MAPPING[username]
+          mail = username
+          username = USER_MAPPING[username]
+        elsif username.include?("@")
           mail = username
           username = username.gsub(/^([^+@]+).*$/, '\1')
         else
           mail = "#{username}@gmail.com"
         end
+
+        return User.anonymous if username == 'admin'
 
         u = User.find_by_login(username)
         if !u
