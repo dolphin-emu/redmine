@@ -145,6 +145,15 @@ namespace :redmine do
         u
       end
 
+      def self.find_or_create_category(category)
+        c = IssueCategory.find_by_name(category)
+        if !c
+          c = IssueCategory.new :project => @target_project, :name => category
+          c.save!
+        end
+        c
+      end
+
       def self.ts(str)
         return Time.iso8601(str)
       end
@@ -186,6 +195,10 @@ namespace :redmine do
           i.id = issue['id']
           if issue['owner']
             i.assigned_to = find_or_create_user(issue['owner']['name'])
+          end
+          category = find_label(issue['labels'], 'component')
+          if category
+            i.category = find_or_create_category(category)
           end
           next unless Time.fake(ts(issue['published'])) { i.save! }
 
