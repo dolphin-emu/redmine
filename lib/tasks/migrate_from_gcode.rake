@@ -192,6 +192,7 @@ namespace :redmine do
           prev_status = DEFAULT_STATUS
           issue['comments']['items'][1..-1].each do |comment|
             print '.'
+            next if comment['deletedBy']
             n = Journal.new :notes => comment['content'],
                             :created_on => ts(comment['published'])
             n.user = find_or_create_user(comment['author']['name'])
