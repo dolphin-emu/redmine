@@ -279,9 +279,8 @@ namespace :redmine do
 
           # Comments and fields/status changes.
           prev_status = DEFAULT_STATUS
-          issue['comments']['items'][1..-1].each do |comment|
+          issue['comments']['items'].each_with_index do |comment, comment_idx|
             print '.'
-            next if comment['deletedBy']
             n = Journal.new :notes => comment['content'],
                             :created_on => ts(comment['published'])
             n.user = find_or_create_user(comment['author']['name'])
@@ -338,7 +337,7 @@ namespace :redmine do
                   :value => value)
               end
             end
-            n.save!
+            n.save! unless (comment_idx == 0 || comment['deletedBy'])
           end
 
           # Custom fields
