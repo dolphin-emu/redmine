@@ -157,7 +157,7 @@ namespace :redmine do
       end
 
       def self.migrate
-        print 'Migrating issues'
+        print 'Migrating issues '
         @takeout_project['issues']['items'].each do |issue|
           print '|', issue['id'], '|'
           Issue.find(issue['id']).destroy if Issue.exists?(issue['id'])
@@ -197,9 +197,38 @@ namespace :redmine do
                 prev_status = new_status
               end
             end
-            n.save
+            n.save!
           end
         end
+        puts
+
+        print 'Migrating issue relations '
+        @takeout_project['issues']['items'].each do |issue|
+          if issue['status'].downcase == 'duplicate'
+            print 'D'
+            last_mergedinto = nil
+            issue['comments']['items'].each do |comment|
+              next unless comment['updates']['mergedInto']
+              last_mergedinto = comment['updates']['mergedInto'].to_i
+            end
+            r = IssueRelation.new :relation_type => IssueRelation::TYPE_DUPLICATES
+            r.issue_from = Issue.find_by_id(issue['id'])
+            r.issue_to = Issue.find_by_id(last_mergedinto)
+            next unless r.issue_to
+            r.save!
+          end
+          if issue['blocking']
+            issue['blocking'].each do |b|
+              print 'B'
+              r = IssueRelation.new :relation_type => IssueRelation::TYPE_BLOCKS
+              r.issue_from = Issue.find_by_id(issue['id'])
+              r.issue_to = Issue.find_by_id(b['issueId'])
+              next unless r.issue_to
+              r.save!
+            end
+          end
+        end
+        puts
       end
     end
 
