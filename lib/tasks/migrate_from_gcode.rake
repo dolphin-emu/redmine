@@ -94,8 +94,14 @@ namespace :redmine do
         "easy" => [easy_cf, nil, nil],
       }
 
+      class FakeComponentMapping
+        def [](key)
+          GCodeMigrate.find_or_create_category(key)
+        end
+      end
       SPECIAL_LABELS = {
         'priority' => ['priority_id', DEFAULT_PRIORITY, PRIORITY_MAPPING],
+        'component' => ['category_id', nil, FakeComponentMapping.new],
       }
 
       class ::Time
@@ -218,7 +224,7 @@ namespace :redmine do
           label, value = cut_label(l)
           label.downcase!
           if label[0] == '-'
-            label = label[1, -1]
+            label = label[1..-1]
             if diff[label]
               diff[label] = [:mod, diff[label][1], value]
             else
@@ -309,11 +315,9 @@ namespace :redmine do
                   end
                 end
                 if SPECIAL_LABELS[label]
-                  default = default.id
+                  default = default && default.id
                   value = value.id
-                  if prev
-                    prev = prev.id
-                  end
+                  prev = prev && prev.id
                 end
                 if type == :add
                   old_value, value = default, value
