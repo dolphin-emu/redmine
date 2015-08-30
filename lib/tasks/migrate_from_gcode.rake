@@ -270,6 +270,11 @@ namespace :redmine do
           if category
             i.category = find_or_create_category(category)
           end
+          if issue['cc']
+            issue['cc'].each do |cc|
+              i.add_watcher(find_or_create_user(cc['name']))
+            end
+          end
           next unless Time.fake(ts(issue['published'])) { i.save! }
 
           # Comments and fields/status changes.
