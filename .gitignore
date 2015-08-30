@@ -20,6 +20,7 @@
 /log/*.log*
 /log/mongrel_debug
 /plugins/*
+!/plugins/redmine_webhook
 !/plugins/README
 /public/dispatch.*
 /public/plugin_assets/*

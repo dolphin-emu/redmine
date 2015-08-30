@@ -1,3 +1,6 @@
 [submodule "public/themes/circle"]
 	path = public/themes/circle
 	url = https://github.com/RCRM/circle
+[submodule "plugins/redmine_webhook"]
+	path = plugins/redmine_webhook
+	url = https://github.com/suer/redmine_webhook
