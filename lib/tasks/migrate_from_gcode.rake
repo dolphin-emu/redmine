@@ -187,7 +187,7 @@ namespace :redmine do
           if issue['owner']
             i.assigned_to = find_or_create_user(issue['owner']['name'])
           end
-          next unless Time.fake(ts(issue['updated'])) { i.save! }
+          next unless Time.fake(ts(issue['published'])) { i.save! }
 
           prev_status = DEFAULT_STATUS
           issue['comments']['items'][1..-1].each do |comment|
