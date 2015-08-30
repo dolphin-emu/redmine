@@ -87,15 +87,18 @@ namespace :redmine do
           "task" => "Task",
         }],
         "milestone" => [milestone_cf, nil, nil],
-        "regression" => [regression_cf, nil, nil],
-        "usability" => [usability_cf, nil, nil],
-        "performance" => [performance_cf, nil, nil],
-        "maintainability" => [maintainability_cf, nil, nil],
-        "easy" => [easy_cf, nil, nil],
+        "regression" => [regression_cf, '0', {'0'=>'0', '1'=>'1'}],
+        "usability" => [usability_cf, '0', {'0'=>'0', '1'=>'1'}],
+        "performance" => [performance_cf, '0', {'0'=>'0', '1'=>'1'}],
+        "maintainability" => [maintainability_cf, '0', {'0'=>'0', '1'=>'1'}],
+        "easy" => [easy_cf, '0', {'0'=>'0', '1'=>'1'}],
       }
 
       class FakeComponentMapping
         def [](key)
+          if key.nil? || key.blank?
+            key = 'unknown'
+          end
           GCodeMigrate.find_or_create_category(key)
         end
       end
@@ -184,6 +187,7 @@ namespace :redmine do
       end
 
       def self.find_or_create_category(category)
+        return nil unless (category && !category.blank?)
         c = IssueCategory.find_by_name(category)
         if !c
           c = IssueCategory.new :project => @target_project, :name => category
@@ -197,10 +201,12 @@ namespace :redmine do
       end
 
       def self.cut_label(lbl)
-        lbl.gsub(/^(-?[^-]+)(?:-(.*))?$/) do |m|
+        lbl.gsub(/^(-?[^-]+)(-.*)?$/) do |m|
           lbl, value = $1, $2
           if value.blank?
-            value = "Yes"
+            value = '1'
+          else
+            value = value[1..-1]
           end
           return [lbl, value]
         end
@@ -248,6 +254,7 @@ namespace :redmine do
       def self.migrate
         print 'Migrating issues '
         @takeout_project['issues']['items'].each do |issue|
+          next unless issue['id'] == 882
           print '|', issue['id'], '|'
           Issue.find(issue['id']).destroy if Issue.exists?(issue['id'])
           title = issue['title']
@@ -266,10 +273,7 @@ namespace :redmine do
           if issue['owner']
             i.assigned_to = find_or_create_user(issue['owner']['name'])
           end
-          category = find_label(issue['labels'], 'component')
-          if category
-            i.category = find_or_create_category(category)
-          end
+          i.category = find_or_create_category(find_label(issue['labels'], 'component'))
           if issue['cc']
             issue['cc'].each do |cc|
               i.add_watcher(find_or_create_user(cc['name']))
@@ -324,7 +328,7 @@ namespace :redmine do
                   prev = prev && prev.id
                 end
                 if type == :add
-                  old_value, value = default, value
+                  old_value, value = nil, value
                 elsif type == :mod
                   old_value, value = prev, value
                 else
