@@ -66,6 +66,38 @@ namespace :redmine do
         "admin@archshift.com" => "archshift",
       }
 
+      opsys_cf = IssueCustomField.find_by_name('Operating system')
+      type_cf = IssueCustomField.find_by_name('Issue type')
+      milestone_cf = IssueCustomField.find_by_name('Milestone')
+      regression_cf = IssueCustomField.find_by_name('Regression')
+      usability_cf = IssueCustomField.find_by_name('Relates to usability')
+      performance_cf = IssueCustomField.find_by_name('Relates to performance')
+      maintainability_cf = IssueCustomField.find_by_name('Relates to maintainability')
+      easy_cf = IssueCustomField.find_by_name('Easy')
+      LABELS_MAPPING = {
+        "opsys" => [opsys_cf, "N/A", {
+          "android" => "Android",
+          "windows" => "Windows",
+          "osx" => "OS X",
+          "bsd" => "FreeBSD"
+        }],
+        "type" => [type_cf, "Other", {
+          "defect" => "Bug",
+          "enhancement" => "Feature request",
+          "task" => "Task",
+        }],
+        "milestone" => [milestone_cf, nil, nil],
+        "regression" => [regression_cf, nil, nil],
+        "usability" => [usability_cf, nil, nil],
+        "performance" => [performance_cf, nil, nil],
+        "maintainability" => [maintainability_cf, nil, nil],
+        "easy" => [easy_cf, nil, nil],
+      }
+
+      SPECIAL_LABELS = {
+        'priority' => ['priority_id', DEFAULT_PRIORITY, PRIORITY_MAPPING],
+      }
+
       class ::Time
         class << self
           alias :real_now :now
@@ -158,16 +190,49 @@ namespace :redmine do
         return Time.iso8601(str)
       end
 
+      def self.cut_label(lbl)
+        lbl.gsub(/^(-?[^-]+)(?:-(.*))?$/) do |m|
+          lbl, value = $1, $2
+          if value.blank?
+            value = "Yes"
+          end
+          return [lbl, value]
+        end
+      end
+
       def self.find_label(labels, prefix)
         return nil unless labels
         labels.each do |l|
-          l.downcase!
-          if l.start_with? (prefix + '-')
-            l.slice! (prefix + "-")
-            return l
+          label, value = cut_label(l)
+          label.downcase!
+          if label == prefix
+            return value
           end
         end
         nil
+      end
+
+      def self.compute_label_diff(labels)
+        diff = {}
+        labels.each do |l|
+          label, value = cut_label(l)
+          label.downcase!
+          if label[0] == '-'
+            label = label[1, -1]
+            if diff[label]
+              diff[label] = [:mod, diff[label][1], value]
+            else
+              diff[label] = [:del, value, nil]
+            end
+          else
+            if diff[label]
+              diff[label] = [:mod, value, diff[label][1]]
+            else
+              diff[label] = [:add, value, nil]
+            end
+          end
+        end
+        diff
       end
 
       def self.limit_for(klass, attribute)
@@ -189,7 +254,6 @@ namespace :redmine do
                         :priority => PRIORITY_MAPPING[find_label(issue['labels'], 'priority')] || DEFAULT_PRIORITY,
                         :created_on => ts(issue['published'])
           i.author = find_or_create_user(issue['author']['name'])
-          # TODO: Component and other labels.
           i.tracker = DEFAULT_TRACKER
           i.status = STATUS_MAPPING[issue['status'].downcase] || DEFAULT_STATUS
           i.id = issue['id']
@@ -202,6 +266,7 @@ namespace :redmine do
           end
           next unless Time.fake(ts(issue['published'])) { i.save! }
 
+          # Comments and fields/status changes.
           prev_status = DEFAULT_STATUS
           issue['comments']['items'][1..-1].each do |comment|
             print '.'
@@ -220,7 +285,70 @@ namespace :redmine do
                 prev_status = new_status
               end
             end
+            if comment['updates']['labels']
+              compute_label_diff(comment['updates']['labels']).each do |label, (type, value, prev)|
+                if SPECIAL_LABELS[label]
+                  property = 'attr'
+                  prop_key, default, value_remap = SPECIAL_LABELS[label]
+                else
+                  property = 'cf'
+                  next unless LABELS_MAPPING[label]
+                  cf, default, value_remap = LABELS_MAPPING[label]
+                  prop_key = cf.id
+                end
+                if value_remap && value_remap[value.downcase]
+                  value = value_remap[value.downcase]
+                elsif default
+                  value = default
+                end
+                if prev
+                  if value_remap && value_remap[prev.downcase]
+                    prev = value_remap[prev.downcase]
+                  elsif default
+                    prev = default
+                  end
+                end
+                if SPECIAL_LABELS[label]
+                  default = default.id
+                  value = value.id
+                  if prev
+                    prev = prev.id
+                  end
+                end
+                if type == :add
+                  old_value, value = default, value
+                elsif type == :mod
+                  old_value, value = prev, value
+                else
+                  old_value, value = value, default
+                end
+                n.details << JournalDetail.new(
+                  :property => property,
+                  :prop_key => prop_key,
+                  :old_value => old_value,
+                  :value => value)
+              end
+            end
             n.save!
+          end
+
+          # Custom fields
+          custom_values = {}
+          if issue['labels']
+            issue['labels'].each do |lbl|
+              lbl, value = cut_label(lbl)
+              lbl.downcase!
+              next unless LABELS_MAPPING[lbl]
+              custom_field, default, value_remap = LABELS_MAPPING[lbl]
+              if value_remap && value_remap[value.downcase]
+                value = value_remap[value.downcase]
+              elsif default
+                value = default
+              end
+              custom_values[custom_field.id] = value
+            end
+            i.custom_field_values = custom_values
+            i.save_custom_field_values
           end
         end
         puts
