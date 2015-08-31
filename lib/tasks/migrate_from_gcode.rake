@@ -264,12 +264,16 @@ namespace :redmine do
           i = Issue.new :project => @target_project,
                         :subject => title[0, 255],
                         :description => issue['comments']['items'][0]['content'],
-                        :priority => PRIORITY_MAPPING[find_label(issue['labels'], 'priority')] || DEFAULT_PRIORITY,
                         :created_on => ts(issue['published'])
           i.author = find_or_create_user(issue['author']['name'])
           i.tracker = DEFAULT_TRACKER
           i.status = STATUS_MAPPING[issue['status'].downcase] || DEFAULT_STATUS
           i.id = issue['id']
+          if priority = find_label(issue['labels'], 'priority')
+            i.priority = PRIORITY_MAPPING[priority.downcase] || DEFAULT_PRIORITY
+          else
+            i.priority = DEFAULT_PRIORITY
+          end
           if issue['owner']
             i.assigned_to = find_or_create_user(issue['owner']['name'])
           end
