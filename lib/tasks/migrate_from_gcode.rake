@@ -254,7 +254,6 @@ namespace :redmine do
       def self.migrate
         print 'Migrating issues '
         @takeout_project['issues']['items'].each do |issue|
-          next unless issue['id'] == 882
           print '|', issue['id'], '|'
           Issue.find(issue['id']).destroy if Issue.exists?(issue['id'])
           title = issue['title']
