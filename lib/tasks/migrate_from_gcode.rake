@@ -60,7 +60,7 @@ namespace :redmine do
         'critical' => priorities[3]
       }
 
-      DEFAULT_TRACKER = Tracker.find_by_name('Issue')
+      DEFAULT_TRACKER = Tracker.find_by_name('Imported')
 
       USER_MAPPING = {
         "admin@archshift.com" => "archshift",
