@@ -122,6 +122,44 @@ namespace :redmine do
         end
       end
 
+      class FakeFile
+        def initialize(aid, filename, content_type, size)
+          @aid = aid
+          @filename = filename
+          @content_type = content_type
+          @size = size
+        end
+
+        def size
+          @size
+        end
+
+        def original_filename
+          @filename
+        end
+
+        def content_type
+          @content_type
+        end
+
+        def real_path
+          '/home/bugs/redmine/files/imported/' + @aid
+        end
+
+        def exists?
+          File.file?(self.real_path)
+        end
+
+        def read(*args)
+          if @read_finished
+            nil
+          else
+            @read_finished = true
+            File.read(self.real_path)
+          end
+        end
+      end
+
       def self.set_takeout_file(path)
         @takeout_data = JSON.parse(File.read(path))
       end
@@ -344,6 +382,27 @@ namespace :redmine do
                   :value => value)
               end
             end
+            if comment['attachments'] && !comment['deletedBy']
+              comment['attachments'].each do |att|
+                next if att['isDeleted'] || att['fileName'].blank? || (att['fileSize'] == 0)
+                fakefile = FakeFile.new(att['attachmentId'],
+                                        att['fileName'],
+                                        att['mimetype'],
+                                        att['fileSize'])
+                next unless fakefile.exists?
+                a = Attachment.new :created_on => ts(comment['published'])
+                a.file = fakefile
+                a.author = n.user
+                a.container = i
+                a.save!
+
+                n.details << JournalDetail.new(
+                  :property => 'attachment',
+                  :prop_key => a.id,
+                  :old_value => nil,
+                  :value => att['fileName'])
+              end
+            end
             n.save! unless (comment_idx == 0 || comment['deletedBy'])
           end
 
@@ -431,16 +490,19 @@ namespace :redmine do
 
     old_notified_events = Setting.notified_events
     old_password_min_length = Setting.password_min_length
+    old_attachment_max_size = Setting.attachment_max_size
     begin
       # Turn off email notifications temporarily
       Setting.notified_events = []
       Setting.password_min_length = 4
+      Setting.attachment_max_size = "1000000"
       # Run the migration
       GCodeMigrate.migrate
     ensure
       # Restore previous settings
       Setting.notified_events = old_notified_events
       Setting.password_min_length = old_password_min_length
+      Setting.attachment_max_size = old_attachment_max_size
     end
   end
 end
