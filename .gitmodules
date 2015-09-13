@@ -4,3 +4,6 @@
 [submodule "plugins/redmine_webhook"]
 	path = plugins/redmine_webhook
 	url = https://github.com/suer/redmine_webhook
+[submodule "plugins/redmine_issue_templates"]
+	path = plugins/redmine_issue_templates
+	url = https://github.com/dolphin-emu/redmine_issue_templates.git

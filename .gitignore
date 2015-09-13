@@ -21,6 +21,7 @@
 /log/mongrel_debug
 /plugins/*
 !/plugins/redmine_webhook
+!/plugins/redmine_issue_templates
 !/plugins/README
 /public/dispatch.*
 /public/plugin_assets/*
