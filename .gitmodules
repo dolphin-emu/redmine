@@ -7,3 +7,6 @@
 [submodule "plugins/redmine_issue_templates"]
 	path = plugins/redmine_issue_templates
 	url = https://github.com/dolphin-emu/redmine_issue_templates.git
+[submodule "public/themes/flat"]
+	path = public/themes/flat
+	url = https://github.com/dolphin-emu/redmine-theme-flat.git
